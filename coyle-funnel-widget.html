@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pipeline Funnel — The Coyle Group</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #050505;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #f5f5f5;
+      padding: 36px 28px 48px;
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    .tcg-header {
+      text-align: center;
+      margin-bottom: 44px;
+    }
+    .tcg-header h1 {
+      font-family: Georgia, serif;
+      font-style: italic;
+      font-size: 38px;
+      font-weight: normal;
+      color: #f5f5f5;
+      line-height: 1.1;
+    }
+    .tcg-header h1 span { color: #b41212; }
+    .tcg-header .divider {
+      width: 56px;
+      height: 2px;
+      background: #b41212;
+      margin: 14px auto 12px;
+    }
+    .tcg-header .subtitle {
+      font-size: 12px;
+      letter-spacing: 7px;
+      color: #928f8f;
+      text-transform: uppercase;
+    }
+
+    /* ── MONTH BLOCK ── */
+    .month-block {
+      margin-bottom: 28px;
+    }
+    .month-label {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .month-label span {
+      font-family: Georgia, serif;
+      font-style: italic;
+      font-size: 20px;
+      color: #f5f5f5;
+      letter-spacing: 1px;
+      white-space: nowrap;
+    }
+    .month-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(to right, #2a0a0a, transparent);
+    }
+    .month-label::before {
+      content: '';
+      width: 4px;
+      height: 22px;
+      background: #b41212;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    /* ── STAGES ROW ── */
+    .stages-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .stage-pill {
+      flex: 1;
+      min-width: 120px;
+      background: #0e0e0e;
+      border: 1px solid #1c1c1c;
+      border-radius: 10px;
+      padding: 14px 12px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      transition: border-color 0.2s;
+    }
+    .stage-pill:hover { border-color: #b41212; }
+    .stage-label {
+      font-size: 9.5px;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: #5a5a5a;
+      text-align: center;
+      line-height: 1.5;
+    }
+    .stage-pct {
+      font-family: Georgia, serif;
+      font-size: 30px;
+      font-weight: bold;
+      line-height: 1;
+    }
+
+    /* ── COLOR TIERS ── */
+    .pct-green  { color: #4caf50; }
+    .pct-yellow { color: #ffc107; }
+    .pct-red    { color: #e53935; }
+
+    /* ── UTILITY ── */
+    .loading {
+      text-align: center;
+      color: #444;
+      font-size: 12px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      padding: 80px 0;
+    }
+    .error-msg {
+      text-align: center;
+      color: #e53935;
+      font-size: 13px;
+      padding: 60px 0;
+      line-height: 1.8;
+    }
+    .updated-at {
+      text-align: center;
+      color: #2a2a2a;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-top: 40px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="tcg-header">
+    <h1>The <span>Coyle</span> Group</h1>
+    <div class="divider"></div>
+    <p class="subtitle">Pipeline Funnel &nbsp;·&nbsp; 2026</p>
+  </div>
+
+  <div id="content">
+    <div class="loading">Loading data…</div>
+  </div>
+
+  <div id="updated-at" class="updated-at"></div>
+
+  <script>
+    const SHEET_ID   = '1HJrvPMRIj0xLb4uLOj4iHSnGiC74VP37qX9EHzLgzNI';
+    const GID        = '1376053564';
+    const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
+    const REFRESH_MS = 5 * 60 * 1000; // refresh every 5 minutes
+
+    function parseCSV(text) {
+      return text.trim().split('\n').map(line => {
+        const cells = [];
+        let cur = '', inQ = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (ch === '"') { inQ = !inQ; }
+          else if (ch === ',' && !inQ) { cells.push(cur.trim()); cur = ''; }
+          else { cur += ch; }
+        }
+        cells.push(cur.trim());
+        return cells;
+      });
+    }
+
+    function parsePct(str) {
+      if (!str) return 0;
+      return parseFloat(str.replace('%', '')) || 0;
+    }
+
+    function pctClass(val) {
+      if (val >= 80) return 'pct-green';
+      if (val >= 50) return 'pct-yellow';
+      return 'pct-red';
+    }
+
+    function render(rows) {
+      // Row 0 = header, rows 1+ = data (skip empty month rows)
+      const dataRows = rows.slice(1).filter(r => r[0] && r[0].trim() !== '');
+
+      const container = document.getElementById('content');
+      container.innerHTML = '';
+
+      dataRows.forEach(row => {
+        // Columns (0-indexed):
+        // 0=Month, 1=NewLeads, 2=Qualified, 3=Qual%,
+        // 4=DataGathering, 5=DG%, 6=OutToMarket, 7=OtM%,
+        // 8=Proposal, 9=Prop%, 10=Won, 11=BindRate(Proposal→Won%)
+        const month    = row[0];
+        const newLeads = parseFloat(row[1]) || 0;
+        const won      = parseFloat(row[10]) || 0;
+
+        const stages = [
+          { label: 'New Lead\n→ Qualified',            pct: parsePct(row[3])  },
+          { label: 'Qualified\n→ Data Gathering',      pct: parsePct(row[5])  },
+          { label: 'Data Gathering\n→ Out to Market',  pct: parsePct(row[7])  },
+          { label: 'Out to Market\n→ Proposal',        pct: parsePct(row[9])  },
+          { label: 'Proposal\n→ Won',                   pct: parsePct(row[11]) },
+          { label: 'Close Rate',                        pct: newLeads > 0 ? Math.round((won / newLeads) * 100) : 0 },
+        ];
+
+        const block = document.createElement('div');
+        block.className = 'month-block';
+
+        // Month header
+        const labelRow = document.createElement('div');
+        labelRow.className = 'month-label';
+        const labelSpan = document.createElement('span');
+        labelSpan.textContent = month.toUpperCase();
+        labelRow.appendChild(labelSpan);
+        block.appendChild(labelRow);
+
+        // Stages
+        const stagesRow = document.createElement('div');
+        stagesRow.className = 'stages-row';
+
+        stages.forEach(s => {
+          const pill = document.createElement('div');
+          pill.className = 'stage-pill';
+
+          const lbl = document.createElement('div');
+          lbl.className = 'stage-label';
+          lbl.textContent = s.label;
+
+          const pct = document.createElement('div');
+          pct.className = `stage-pct ${pctClass(s.pct)}`;
+          pct.textContent = s.pct + '%';
+
+          pill.appendChild(lbl);
+          pill.appendChild(pct);
+          stagesRow.appendChild(pill);
+        });
+
+        block.appendChild(stagesRow);
+        container.appendChild(block);
+      });
+
+      const now = new Date();
+      document.getElementById('updated-at').textContent =
+        `Last updated: ${now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} at ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+    }
+
+    async function load() {
+      try {
+        const res  = await fetch(CSV_URL + '&t=' + Date.now());
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        const rows = parseCSV(text);
+        render(rows);
+      } catch (e) {
+        document.getElementById('content').innerHTML =
+          `<div class="error-msg">
+            Could not load data.<br>
+            Make sure the sheet is set to <strong>Anyone with the link can view</strong>.<br>
+            <small style="color:#444">${e.message}</small>
+          </div>`;
+      }
+    }
+
+    load();
+    setInterval(load, REFRESH_MS);
+  </script>
+</body>
+</html>
