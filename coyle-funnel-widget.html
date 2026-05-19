@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pipeline Funnel — The Coyle Group</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #f5f5f5;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #111;
+      padding: 32px 28px 48px;
+    }
+
+    /* ── MONTH BLOCK ── */
+    .month-block {
+      background: #fff;
+      border-radius: 14px;
+      padding: 24px 24px 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      border-left: 5px solid #b41212;
+    }
+
+    .month-label {
+      font-family: Georgia, serif;
+      font-style: italic;
+      font-size: 28px;
+      font-weight: normal;
+      color: #111;
+      margin-bottom: 18px;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── STAGES ROW ── */
+    .stages-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .stage-pill {
+      flex: 1;
+      min-width: 130px;
+      background: #f9f9f9;
+      border: 1px solid #e8e8e8;
+      border-radius: 10px;
+      padding: 16px 10px 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      transition: box-shadow 0.2s, border-color 0.2s;
+    }
+    .stage-pill:hover {
+      box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+      border-color: #b41212;
+    }
+    .stage-label {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      color: #444;
+      text-align: center;
+      line-height: 1.4;
+    }
+    .stage-pct {
+      font-family: Georgia, serif;
+      font-size: 34px;
+      font-weight: bold;
+      line-height: 1;
+    }
+    .stage-counts {
+      font-size: 13px;
+      color: #888;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── COLOR TIERS ── */
+    .pct-green  { color: #2e7d32; }
+    .pct-yellow { color: #e65100; }
+    .pct-red    { color: #b41212; }
+
+    /* ── UTILITY ── */
+    .loading {
+      text-align: center;
+      color: #aaa;
+      font-size: 13px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      padding: 80px 0;
+    }
+    .error-msg {
+      text-align: center;
+      color: #b41212;
+      font-size: 13px;
+      padding: 60px 0;
+      line-height: 1.8;
+    }
+    .updated-at {
+      text-align: center;
+      color: #bbb;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-top: 32px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="content">
+    <div class="loading">Loading data…</div>
+  </div>
+
+  <div id="updated-at" class="updated-at"></div>
+
+  <script>
+    var SHEET_ID   = '1HJrvPMRIj0xLb4uLOj4iHSnGiC74VP37qX9EHzLgzNI';
+    var GID        = '1376053564';
+    var CSV_URL    = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/export?format=csv&gid=' + GID;
+    var REFRESH_MS = 5 * 60 * 1000;
+
+    function parseCSV(text) {
+      return text.trim().split('\n').map(function(line) {
+        var cells = [], cur = '', inQ = false;
+        for (var i = 0; i < line.length; i++) {
+          var ch = line[i];
+          if (ch === '"') { inQ = !inQ; }
+          else if (ch === ',' && !inQ) { cells.push(cur.trim()); cur = ''; }
+          else { cur += ch; }
+        }
+        cells.push(cur.trim());
+        return cells;
+      });
+    }
+
+    function parsePct(str) {
+      if (!str) return 0;
+      return parseFloat(str.replace('%', '')) || 0;
+    }
+
+    function pctClass(val) {
+      if (val >= 80) return 'pct-green';
+      if (val >= 50) return 'pct-yellow';
+      return 'pct-red';
+    }
+
+    function isMonthRow(row) {
+      return row[0] && /^[A-Za-z]+\s+20\d{2}$/.test(row[0].trim()) && !isNaN(parseFloat(row[1]));
+    }
+
+    function render(rows) {
+      var dataRows = rows.slice(1).filter(isMonthRow);
+      var container = document.getElementById('content');
+      container.innerHTML = '';
+
+      dataRows.forEach(function(row) {
+        var month    = row[0];
+        var newLeads = parseFloat(row[1])  || 0;
+        var qual     = parseFloat(row[2])  || 0;
+        var dg       = parseFloat(row[4])  || 0;
+        var otm      = parseFloat(row[6])  || 0;
+        var prop     = parseFloat(row[8])  || 0;
+        var won      = parseFloat(row[10]) || 0;
+
+        var stages = [
+          { label: 'New Lead → Qualified',           pct: parsePct(row[3]),  from: newLeads, to: qual  },
+          { label: 'Qualified → Data Gathering',     pct: parsePct(row[5]),  from: qual,     to: dg    },
+          { label: 'Data Gathering → Out to Market', pct: parsePct(row[7]),  from: dg,       to: otm   },
+          { label: 'Out to Market → Proposal',       pct: parsePct(row[9]),  from: otm,      to: prop  },
+          { label: 'Proposal → Won',                  pct: parsePct(row[11]), from: prop,     to: won   },
+          { label: 'Lost Deals',                       pct: newLeads > 0 ? Math.round((won / newLeads) * 100) : 0, from: newLeads, to: won },
+          { label: 'Conversion Rate',                  pct: qual > 0 ? Math.round((won / qual) * 100) : 0, from: qual, to: won }
+        ];
+
+        var block = document.createElement('div');
+        block.className = 'month-block';
+
+        var monthEl = document.createElement('div');
+        monthEl.className = 'month-label';
+        monthEl.textContent = month;
+        block.appendChild(monthEl);
+
+        var stagesRow = document.createElement('div');
+        stagesRow.className = 'stages-row';
+
+        stages.forEach(function(s) {
+          var pill = document.createElement('div');
+          pill.className = 'stage-pill';
+
+          var lbl = document.createElement('div');
+          lbl.className = 'stage-label';
+          lbl.textContent = s.label;
+
+          var pct = document.createElement('div');
+          pct.className = 'stage-pct ' + pctClass(s.pct);
+          pct.textContent = s.pct + '%';
+
+          var counts = document.createElement('div');
+          counts.className = 'stage-counts';
+          counts.textContent = s.from + ' → ' + s.to;
+
+          pill.appendChild(lbl);
+          pill.appendChild(pct);
+          pill.appendChild(counts);
+          stagesRow.appendChild(pill);
+        });
+
+        block.appendChild(stagesRow);
+        container.appendChild(block);
+      });
+
+      var now = new Date();
+      document.getElementById('updated-at').textContent =
+        'Last updated: ' +
+        now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) +
+        ' at ' +
+        now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function load() {
+      fetch(CSV_URL + '&t=' + Date.now())
+        .then(function(r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.text();
+        })
+        .then(function(t) { render(parseCSV(t)); })
+        .catch(function(e) {
+          document.getElementById('content').innerHTML =
+            '<div class="error-msg">Could not load data. Make sure the sheet is set to Anyone with the link can view.<br><small style="color:#ccc">' + e.message + '</small></div>';
+        });
+    }
+
+    load();
+    setInterval(load, REFRESH_MS);
+  </script>
+</body>
+</html>
