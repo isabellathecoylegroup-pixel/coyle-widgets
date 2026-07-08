@@ -24,6 +24,21 @@
       border-left: 5px solid #b41212;
     }
 
+    /* ── YTD SUMMARY BLOCK ── */
+    .ytd-block {
+      border-left-color: #c8930a;
+      background: #fffdf5;
+      margin-top: 12px;
+    }
+    .ytd-block .month-label {
+      color: #c8930a;
+    }
+    .ytd-divider {
+      border: none;
+      border-top: 2px dashed #ddd;
+      margin: 8px 0 20px;
+    }
+
     .month-label {
       font-family: Georgia, serif;
       font-style: italic;
@@ -56,6 +71,9 @@
     .stage-pill:hover {
       box-shadow: 0 4px 14px rgba(0,0,0,0.08);
       border-color: #b41212;
+    }
+    .ytd-block .stage-pill:hover {
+      border-color: #c8930a;
     }
     .stage-label {
       font-size: 12px;
@@ -152,11 +170,50 @@
       return row[0] && /^[A-Za-z]+\s+20\d{2}$/.test(row[0].trim()) && !isNaN(parseFloat(row[1]));
     }
 
+    function buildStageBlock(label, stages, extraClass) {
+      var block = document.createElement('div');
+      block.className = 'month-block' + (extraClass ? ' ' + extraClass : '');
+
+      var monthEl = document.createElement('div');
+      monthEl.className = 'month-label';
+      monthEl.textContent = label;
+      block.appendChild(monthEl);
+
+      var stagesRow = document.createElement('div');
+      stagesRow.className = 'stages-row';
+
+      stages.forEach(function(s) {
+        var pill = document.createElement('div');
+        pill.className = 'stage-pill';
+
+        var lbl = document.createElement('div');
+        lbl.className = 'stage-label';
+        lbl.textContent = s.label;
+
+        var pct = document.createElement('div');
+        pct.className = 'stage-pct ' + pctClass(s.pct);
+        pct.textContent = s.pct + '%';
+
+        var counts = document.createElement('div');
+        counts.className = 'stage-counts';
+        counts.textContent = s.from + ' → ' + s.to;
+
+        pill.appendChild(lbl);
+        pill.appendChild(pct);
+        pill.appendChild(counts);
+        stagesRow.appendChild(pill);
+      });
+
+      block.appendChild(stagesRow);
+      return block;
+    }
+
     function render(rows) {
       var dataRows = rows.slice(1).filter(isMonthRow);
       var container = document.getElementById('content');
       container.innerHTML = '';
 
+      // ── Monthly blocks ──
       dataRows.forEach(function(row) {
         var month    = row[0];
         var newLeads = parseFloat(row[1])  || 0;
@@ -176,42 +233,37 @@
           { label: 'Conversion Rate',                  pct: qual > 0 ? Math.round((won / qual) * 100) : 0, from: qual, to: won }
         ];
 
-        var block = document.createElement('div');
-        block.className = 'month-block';
+        container.appendChild(buildStageBlock(month, stages, ''));
+      });
 
-        var monthEl = document.createElement('div');
-        monthEl.className = 'month-label';
-        monthEl.textContent = month;
-        block.appendChild(monthEl);
-
-        var stagesRow = document.createElement('div');
-        stagesRow.className = 'stages-row';
-
-        stages.forEach(function(s) {
-          var pill = document.createElement('div');
-          pill.className = 'stage-pill';
-
-          var lbl = document.createElement('div');
-          lbl.className = 'stage-label';
-          lbl.textContent = s.label;
-
-          var pct = document.createElement('div');
-          pct.className = 'stage-pct ' + pctClass(s.pct);
-          pct.textContent = s.pct + '%';
-
-          var counts = document.createElement('div');
-          counts.className = 'stage-counts';
-          counts.textContent = s.from + ' → ' + s.to;
-
-          pill.appendChild(lbl);
-          pill.appendChild(pct);
-          pill.appendChild(counts);
-          stagesRow.appendChild(pill);
+      // ── YTD aggregate block ──
+      if (dataRows.length > 0) {
+        var ytdNew = 0, ytdQual = 0, ytdDG = 0, ytdOTM = 0, ytdProp = 0, ytdWon = 0;
+        dataRows.forEach(function(row) {
+          ytdNew  += parseFloat(row[1])  || 0;
+          ytdQual += parseFloat(row[2])  || 0;
+          ytdDG   += parseFloat(row[4])  || 0;
+          ytdOTM  += parseFloat(row[6])  || 0;
+          ytdProp += parseFloat(row[8])  || 0;
+          ytdWon  += parseFloat(row[10]) || 0;
         });
 
-        block.appendChild(stagesRow);
-        container.appendChild(block);
-      });
+        var ytdStages = [
+          { label: 'New Lead → Qualified',           pct: ytdNew  > 0 ? Math.round(ytdQual / ytdNew  * 100) : 0, from: ytdNew,  to: ytdQual },
+          { label: 'Qualified → Data Gathering',     pct: ytdQual > 0 ? Math.round(ytdDG   / ytdQual * 100) : 0, from: ytdQual, to: ytdDG   },
+          { label: 'Data Gathering → Out to Market', pct: ytdDG   > 0 ? Math.round(ytdOTM  / ytdDG   * 100) : 0, from: ytdDG,   to: ytdOTM  },
+          { label: 'Out to Market → Proposal',       pct: ytdOTM  > 0 ? Math.round(ytdProp / ytdOTM  * 100) : 0, from: ytdOTM,  to: ytdProp },
+          { label: 'Proposal → Won',                  pct: ytdProp > 0 ? Math.round(ytdWon  / ytdProp * 100) : 0, from: ytdProp, to: ytdWon  },
+          { label: 'Lost Deals',                       pct: ytdNew  > 0 ? Math.round(ytdWon  / ytdNew  * 100) : 0, from: ytdNew,  to: ytdWon  },
+          { label: 'YTD Conversion Rate',              pct: ytdQual > 0 ? Math.round(ytdWon  / ytdQual * 100) : 0, from: ytdQual, to: ytdWon  }
+        ];
+
+        var divider = document.createElement('hr');
+        divider.className = 'ytd-divider';
+        container.appendChild(divider);
+
+        container.appendChild(buildStageBlock('Year to Date', ytdStages, 'ytd-block'));
+      }
 
       var now = new Date();
       document.getElementById('updated-at').textContent =
