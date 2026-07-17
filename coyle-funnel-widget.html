@@ -208,7 +208,6 @@
       var container = document.getElementById('content');
       container.innerHTML = '';
 
-      // ── Monthly blocks (no Lost Deals) ──
       dataRows.forEach(function(row) {
         var month    = row[0];
         var newLeads = parseFloat(row[1])  || 0;
@@ -219,18 +218,17 @@
         var won      = parseFloat(row[10]) || 0;
 
         var stages = [
-          { label: 'New Lead → Qualified',           pct: parsePct(row[3]),  from: newLeads, to: qual  },
-          { label: 'Qualified → Data Gathering',     pct: parsePct(row[5]),  from: qual,     to: dg    },
-          { label: 'Data Gathering → Out to Market', pct: parsePct(row[7]),  from: dg,       to: otm   },
-          { label: 'Out to Market → Proposal',       pct: parsePct(row[9]),  from: otm,      to: prop  },
-          { label: 'Proposal → Won',                 pct: parsePct(row[11]), from: prop,     to: won   },
+          { label: 'New Lead → Qualified',           pct: parsePct(row[3]),  from: newLeads, to: qual },
+          { label: 'Qualified → Data Gathering',     pct: parsePct(row[5]),  from: qual,     to: dg   },
+          { label: 'Data Gathering → Out to Market', pct: parsePct(row[7]),  from: dg,       to: otm  },
+          { label: 'Out to Market → Proposal',       pct: parsePct(row[9]),  from: otm,      to: prop },
+          { label: 'Proposal → Won',                 pct: parsePct(row[11]), from: prop,     to: won  },
           { label: 'Conversion Rate',                pct: qual > 0 ? Math.round((won / qual) * 100) : 0, from: qual, to: won }
         ];
 
         container.appendChild(buildStageBlock(month, stages, ''));
       });
 
-      // ── YTD aggregate block (includes Lost Deals) ──
       if (dataRows.length > 0) {
         var ytdNew = 0, ytdQual = 0, ytdDG = 0, ytdOTM = 0, ytdProp = 0, ytdWon = 0;
         dataRows.forEach(function(row) {
