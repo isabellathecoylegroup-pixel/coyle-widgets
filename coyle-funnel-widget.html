@@ -14,7 +14,6 @@
       padding: 32px 28px 48px;
     }
 
-    /* ── MONTH BLOCK ── */
     .month-block {
       background: #fff;
       border-radius: 14px;
@@ -24,7 +23,6 @@
       border-left: 5px solid #b41212;
     }
 
-    /* ── YTD SUMMARY BLOCK ── */
     .ytd-block {
       border-left-color: #c8930a;
       background: #fffdf5;
@@ -49,7 +47,6 @@
       letter-spacing: 0.5px;
     }
 
-    /* ── STAGES ROW ── */
     .stages-row {
       display: flex;
       flex-wrap: wrap;
@@ -96,12 +93,10 @@
       letter-spacing: 0.5px;
     }
 
-    /* ── COLOR TIERS ── */
     .pct-green  { color: #2e7d32; }
     .pct-yellow { color: #e65100; }
     .pct-red    { color: #b41212; }
 
-    /* ── UTILITY ── */
     .loading {
       text-align: center;
       color: #aaa;
@@ -213,7 +208,7 @@
       var container = document.getElementById('content');
       container.innerHTML = '';
 
-      // ── Monthly blocks ──
+      // ── Monthly blocks (no Lost Deals) ──
       dataRows.forEach(function(row) {
         var month    = row[0];
         var newLeads = parseFloat(row[1])  || 0;
@@ -228,15 +223,14 @@
           { label: 'Qualified → Data Gathering',     pct: parsePct(row[5]),  from: qual,     to: dg    },
           { label: 'Data Gathering → Out to Market', pct: parsePct(row[7]),  from: dg,       to: otm   },
           { label: 'Out to Market → Proposal',       pct: parsePct(row[9]),  from: otm,      to: prop  },
-          { label: 'Proposal → Won',                  pct: parsePct(row[11]), from: prop,     to: won   },
-          { label: 'Lost Deals',                       pct: newLeads > 0 ? Math.round((won / newLeads) * 100) : 0, from: newLeads, to: won },
-          { label: 'Conversion Rate',                  pct: qual > 0 ? Math.round((won / qual) * 100) : 0, from: qual, to: won }
+          { label: 'Proposal → Won',                 pct: parsePct(row[11]), from: prop,     to: won   },
+          { label: 'Conversion Rate',                pct: qual > 0 ? Math.round((won / qual) * 100) : 0, from: qual, to: won }
         ];
 
         container.appendChild(buildStageBlock(month, stages, ''));
       });
 
-      // ── YTD aggregate block ──
+      // ── YTD aggregate block (includes Lost Deals) ──
       if (dataRows.length > 0) {
         var ytdNew = 0, ytdQual = 0, ytdDG = 0, ytdOTM = 0, ytdProp = 0, ytdWon = 0;
         dataRows.forEach(function(row) {
@@ -253,9 +247,9 @@
           { label: 'Qualified → Data Gathering',     pct: ytdQual > 0 ? Math.round(ytdDG   / ytdQual * 100) : 0, from: ytdQual, to: ytdDG   },
           { label: 'Data Gathering → Out to Market', pct: ytdDG   > 0 ? Math.round(ytdOTM  / ytdDG   * 100) : 0, from: ytdDG,   to: ytdOTM  },
           { label: 'Out to Market → Proposal',       pct: ytdOTM  > 0 ? Math.round(ytdProp / ytdOTM  * 100) : 0, from: ytdOTM,  to: ytdProp },
-          { label: 'Proposal → Won',                  pct: ytdProp > 0 ? Math.round(ytdWon  / ytdProp * 100) : 0, from: ytdProp, to: ytdWon  },
-          { label: 'Lost Deals',                       pct: ytdNew  > 0 ? Math.round(ytdWon  / ytdNew  * 100) : 0, from: ytdNew,  to: ytdWon  },
-          { label: 'YTD Conversion Rate',              pct: ytdQual > 0 ? Math.round(ytdWon  / ytdQual * 100) : 0, from: ytdQual, to: ytdWon  }
+          { label: 'Proposal → Won',                 pct: ytdProp > 0 ? Math.round(ytdWon  / ytdProp * 100) : 0, from: ytdProp, to: ytdWon  },
+          { label: 'Lost Deals',                     pct: ytdNew  > 0 ? Math.round(ytdWon  / ytdNew  * 100) : 0, from: ytdNew,  to: ytdWon  },
+          { label: 'YTD Conversion Rate',            pct: ytdQual > 0 ? Math.round(ytdWon  / ytdQual * 100) : 0, from: ytdQual, to: ytdWon  }
         ];
 
         var divider = document.createElement('hr');
